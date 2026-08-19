@@ -1,0 +1,52 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "ailo/order-tracking-lookup",
+  "title": "Order Tracking Lookup",
+  "category": "woocommerce",
+  "icon": "location",
+  "description": "A form where customers look up a shipment by tracking number, or by order number plus the email or phone used on the order.",
+  "keywords": [ "tracking", "shipment", "woocommerce", "delivery" ],
+  "textdomain": "ailo-order-tracking",
+  "attributes": {
+    "mode": {
+      "type": "string",
+      "default": "both",
+      "enum": [ "tracking", "order", "both" ]
+    },
+    "heading": {
+      "type": "string",
+      "default": ""
+    },
+    "showCarrierLink": {
+      "type": "boolean",
+      "default": true
+    },
+    "placeholderText": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "supports": {
+    "align": [ "wide", "full" ],
+    "color": {
+      "background": true,
+      "text": true,
+      "link": true
+    },
+    "spacing": {
+      "margin": true,
+      "padding": true
+    },
+    "typography": {
+      "fontSize": true,
+      "lineHeight": true
+    },
+    "html": false,
+    "interactivity": false
+  },
+  "editorScript": "file:./index.js",
+  "viewScript": "file:./view.js",
+  "style": "file:./style.css",
+  "render": "file:./render.php"
+}

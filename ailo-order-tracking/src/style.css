@@ -1,0 +1,53 @@
+/**
+ * Front-end styles for the Order Tracking Lookup block.
+ *
+ * Intentionally minimal. The block declares color, spacing and typography
+ * support in block.json, which means the theme supplies the palette, the font
+ * and the rhythm. Everything below is layout only — anything decorative here
+ * would fight the theme instead of belonging to it.
+ */
+
+.ailo-track__field {
+	margin-bottom: 1em;
+}
+
+.ailo-track__label {
+	display: block;
+	margin-bottom: 0.25em;
+	font-weight: 600;
+}
+
+.ailo-track__input {
+	width: 100%;
+	max-width: 24rem;
+	box-sizing: border-box;
+}
+
+.ailo-track__or {
+	margin: 0.5em 0 1em;
+	opacity: 0.7;
+}
+
+.ailo-track__result:empty {
+	display: none;
+}
+
+.ailo-track__result {
+	margin-top: 1.25em;
+}
+
+.ailo-track__number {
+	font-family: monospace;
+	font-size: 1.125em;
+	margin: 0.25em 0 0.5em;
+	word-break: break-all;
+}
+
+.ailo-track__carrier {
+	margin: 0;
+	opacity: 0.8;
+}
+
+.ailo-track__noscript {
+	opacity: 0.8;
+}

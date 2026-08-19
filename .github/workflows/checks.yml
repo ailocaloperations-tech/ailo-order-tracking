@@ -1,0 +1,54 @@
+name: checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  php:
+    name: PHP lint + WordPress Coding Standards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer, cs2pr
+      - name: Lint every PHP file
+        run: find ailo-order-tracking -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Install WPCS
+        run: |
+          composer global require --dev wp-coding-standards/wpcs:^3 dealerdirect/phpcodesniffer-composer-installer --no-interaction
+          echo "$HOME/.composer/vendor/bin" >> $GITHUB_PATH
+      - name: phpcs
+        run: phpcs --standard=WordPress --extensions=php --ignore=*/build/* ailo-order-tracking
+
+  js:
+    name: Block build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - working-directory: ailo-order-tracking
+        run: npm install
+      - working-directory: ailo-order-tracking
+        run: npm run lint:js
+      - working-directory: ailo-order-tracking
+        run: npm run build
+
+  plugin-check:
+    name: WordPress.org Plugin Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - working-directory: ailo-order-tracking
+        run: npm install && npm run build
+      - uses: wordpress/plugin-check-action@v1
+        with:
+          build-dir: ./ailo-order-tracking

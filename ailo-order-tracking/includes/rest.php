@@ -105,9 +105,30 @@ function ailo_track_rate_limited( $register = false ) {
 	if ( '' === $ip ) {
 		return false;
 	}
-	$key   = 'ailo_track_rl_' . md5( $ip );
-	$count = (int) get_transient( $key );
+	$key = 'ailo_track_rl_' . md5( $ip );
 
+	// With a persistent object cache, increment atomically. A read-modify-write
+	// on a transient loses increments under concurrency, which means the real
+	// ceiling is the limit multiplied by however many requests a caller runs in
+	// parallel — a limit that a script defeats by simply going faster is not a
+	// limit. Without an object cache the transient path is best effort, but the
+	// ownership check no longer depends on it: full phone or email must match.
+	if ( wp_using_ext_object_cache() ) {
+		$count = wp_cache_get( $key, 'ailo_track' );
+		if ( false === $count ) {
+			wp_cache_add( $key, 0, 'ailo_track', AILO_TRACK_RATE_WINDOW );
+			$count = 0;
+		}
+		if ( (int) $count >= AILO_TRACK_RATE_LIMIT ) {
+			return true;
+		}
+		if ( $register ) {
+			wp_cache_incr( $key, 1, 'ailo_track' );
+		}
+		return false;
+	}
+
+	$count = (int) get_transient( $key );
 	if ( $count >= AILO_TRACK_RATE_LIMIT ) {
 		return true;
 	}
@@ -120,10 +141,18 @@ function ailo_track_rate_limited( $register = false ) {
 /**
  * Does the supplied contact match the billing email or phone on this order?
  *
- * Phone comparison keeps only digits and then compares the last six, because
- * customers type the same number as 070123456, +389 70 123 456 and 00389701234
- * and all three should be accepted. Six digits is short enough to be forgiving
- * and long enough that guessing it is not practical inside the rate limit.
+ * ⚠️ The first version accepted a match on the LAST SIX DIGITS of the phone.
+ * That was meant as convenience — customers type 070123456, +389 70 123 456 and
+ * 00389 70 123 456 for the same number — but it turned the endpoint into an
+ * oracle for six digits of a stranger's phone number: pick an order id, walk
+ * six-digit suffixes, and a 200 tells you when you have them. A million
+ * combinations is a lot for one person and nothing at all for a script, and the
+ * per-IP rate limit is not what should be standing between a stranger and
+ * somebody's phone number.
+ *
+ * Now: the full national number must match. To stay forgiving about how it was
+ * typed, both sides are reduced to digits and, when one carries a country code
+ * and the other does not, compared on the longer of the two lengths.
  *
  * @param WC_Order $order   Order.
  * @param string   $contact Email or phone as typed by the visitor.
@@ -142,16 +171,23 @@ function ailo_track_contact_matches( WC_Order $order, $contact ) {
 
 	$typed = preg_replace( '/\D+/', '', $contact );
 	$phone = preg_replace( '/\D+/', '', (string) $order->get_billing_phone() );
-	if ( '' === $typed || '' === $phone ) {
+
+	// Below 8 digits a "phone number" is not identifying enough to authorise on.
+	if ( strlen( $typed ) < 8 || strlen( $phone ) < 8 ) {
 		return false;
 	}
 	if ( hash_equals( $phone, $typed ) ) {
 		return true;
 	}
-	if ( strlen( $typed ) >= 6 && strlen( $phone ) >= 6 ) {
-		return hash_equals( substr( $phone, -6 ), substr( $typed, -6 ) );
+
+	// One side may carry a country code or a leading zero the other lacks.
+	// Compare on the shorter length, but only when that is still most of the
+	// number — never on a short suffix.
+	$len = min( strlen( $typed ), strlen( $phone ) );
+	if ( $len < 8 ) {
+		return false;
 	}
-	return false;
+	return hash_equals( substr( $phone, -$len ), substr( $typed, -$len ) );
 }
 
 /**
@@ -184,7 +220,7 @@ function ailo_track_rest_lookup( WP_REST_Request $request ) {
 			return new WP_Error( 'ailo_track_missing', __( 'Please enter your order number and the email or phone used on the order.', 'ailo-order-tracking' ), array( 'status' => 400 ) );
 		}
 
-		$order = wc_get_order( $order_id );
+		$order = ailo_track_resolve_order( $order_id );
 		if ( ! $order instanceof WC_Order || ! ailo_track_contact_matches( $order, $contact ) ) {
 			ailo_track_rate_limited( true );
 			return new WP_Error( 'ailo_track_not_found', $generic, array( 'status' => 404 ) );
@@ -192,8 +228,14 @@ function ailo_track_rest_lookup( WP_REST_Request $request ) {
 
 		$number = ailo_track_get_meta( $order, AILO_TRACK_META_NUMBER );
 		if ( '' === $number ) {
-			ailo_track_rate_limited( true );
-			return new WP_Error( 'ailo_track_not_found', $generic, array( 'status' => 404 ) );
+			// NOT counted as a failure: ownership was proven, the shop simply has
+			// not shipped yet. Counting it would rate-limit the one customer who
+			// is checking most often — the one still waiting.
+			return new WP_Error(
+				'ailo_track_pending',
+				__( 'This order does not have a tracking number yet.', 'ailo-order-tracking' ),
+				array( 'status' => 404 )
+			);
 		}
 		$carrier = ailo_track_get_meta( $order, AILO_TRACK_META_CARRIER );
 
@@ -218,31 +260,104 @@ function ailo_track_rest_lookup( WP_REST_Request $request ) {
 }
 
 /**
+ * Resolve what the customer typed as an "order number" into an order.
+ *
+ * WooCommerce lets plugins replace the displayed order number, and shops that
+ * run one of the sequential-order-number plugins show their customers something
+ * that is not the internal order ID at all. Passing the typed value straight to
+ * wc_get_order() means the order mode is dead on every one of those stores —
+ * the customer types the number printed on their invoice and is told, correctly
+ * from the code's point of view and uselessly from theirs, that nothing matched.
+ *
+ * @param int $typed What the customer entered.
+ * @return WC_Order|null
+ */
+function ailo_track_resolve_order( $typed ) {
+	$typed = absint( $typed );
+	if ( $typed <= 0 ) {
+		return null;
+	}
+
+	/**
+	 * Filters the resolution of a customer-facing order number to an order ID.
+	 *
+	 * Return an order ID to short-circuit, or 0 to fall through to the default.
+	 * Sites running a custom order numbering scheme should hook this.
+	 *
+	 * @param int $order_id Resolved order ID, 0 by default.
+	 * @param int $typed    The number the customer entered.
+	 */
+	$resolved = (int) apply_filters( 'ailo_track_resolve_order_number', 0, $typed );
+	if ( $resolved > 0 ) {
+		$order = wc_get_order( $resolved );
+		return $order instanceof WC_Order ? $order : null;
+	}
+
+	$order = wc_get_order( $typed );
+	if ( ! $order instanceof WC_Order ) {
+		return null;
+	}
+
+	// When the store shows a different number than the ID, only accept the
+	// number the customer was actually shown.
+	$shown = preg_replace( '/\D+/', '', (string) $order->get_order_number() );
+	if ( '' !== $shown && (int) $shown !== $typed && $order->get_id() !== $typed ) {
+		return null;
+	}
+
+	return $order;
+}
+
+/**
  * Find the order carrying a tracking number.
  *
- * wc_get_orders() is used rather than a direct query so this works unchanged on
- * both HPOS and the legacy post store.
+ * ⚠️ THIS FUNCTION LEAKED. The first version passed a `meta_query` to
+ * wc_get_orders(). That works on HPOS and is silently DISCARDED on the legacy
+ * post store: WC_Order_Data_Store_CPT lists meta_query in $unsupported_args and
+ * WC_Data_Store_WP::get_wp_query_args() does `continue` on the key, so it never
+ * reaches WP_Query. The warning goes through wc_doing_it_wrong(), which inside a
+ * REST request only writes to error_log — invisible to the caller.
+ *
+ * What was left was: post_type=shop_order, posts_per_page=1, orderby=ID desc.
+ * In other words, on every non-HPOS store this returned THE NEWEST ORDER IN THE
+ * SHOP for any input at all. An anonymous POST with a made-up tracking number
+ * came back 200 with a real customer's tracking number and carrier link, and
+ * because nothing ever "failed", the rate limit never engaged.
+ *
+ * Two independent defences now, because one of them already proved fallible:
+ *   1. meta_key/meta_value, which BOTH data stores understand.
+ *   2. The returned order's stored number is compared against the input. If the
+ *      query ever degenerates again, the comparison fails and nothing is
+ *      disclosed. Never trust a query to have filtered.
  *
  * @param string $normalized Normalised tracking number.
  * @return WC_Order|null
  */
 function ailo_track_find_order_by_number( $normalized ) {
+	if ( '' === $normalized ) {
+		return null;
+	}
+
 	$orders = wc_get_orders(
 		array(
-			'limit'      => 1,
-			'return'     => 'objects',
-			'meta_query' => array(
-				array(
-					'key'     => AILO_TRACK_META_NUMBER,
-					'value'   => $normalized,
-					'compare' => '=',
-				),
-			),
+			'limit'        => 1,
+			'return'       => 'objects',
+			'meta_key'     => AILO_TRACK_META_NUMBER, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			'meta_value'   => $normalized,            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+			'meta_compare' => '=',
 		)
 	);
+
 	if ( empty( $orders ) || ! $orders[0] instanceof WC_Order ) {
 		return null;
 	}
+
+	// The belt to that braces. hash_equals because the input is attacker-controlled.
+	$stored = ailo_track_normalize_number( ailo_track_get_meta( $orders[0], AILO_TRACK_META_NUMBER ) );
+	if ( '' === $stored || ! hash_equals( $stored, $normalized ) ) {
+		return null;
+	}
+
 	return $orders[0];
 }
 

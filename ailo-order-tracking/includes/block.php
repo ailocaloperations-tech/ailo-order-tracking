@@ -17,7 +17,8 @@ add_action(
 	static function () {
 		$build = AILO_TRACK_DIR . 'build';
 		if ( ! file_exists( $build . '/block.json' ) ) {
-			// Not built yet — say so in the admin rather than failing silently.
+			// The release zip always contains build/. A clone of the source repo
+			// does not, because build output does not belong in version control.
 			add_action(
 				'admin_notices',
 				static function () {
@@ -25,7 +26,10 @@ add_action(
 						return;
 					}
 					echo '<div class="notice notice-warning"><p>';
-					esc_html_e( 'Ailo Order Tracking: the block is not built. Run "npm install && npm run build" in the plugin folder.', 'ailo-order-tracking' );
+					esc_html_e(
+						'Ailo Order Tracking: the block is missing. Install the plugin from a release zip, or if you cloned the source repository, run "npm install && npm run build" in the plugin folder.',
+						'ailo-order-tracking'
+					);
 					echo '</p></div>';
 				}
 			);
@@ -36,27 +40,42 @@ add_action(
 );
 
 /**
- * Hand the front-end script the REST root and a nonce.
+ * Configuration for the front-end script.
  *
- * The nonce is not an authorisation check — the lookup route is public by design
- * — but WordPress needs it to treat the request as coming from this site rather
- * than as an anonymous cross-origin call, and it keeps the route out of reach of
- * trivially scripted abuse from another domain.
+ * ⚠️ This used to hang off wp_enqueue_scripts behind has_block(). Both halves
+ * were wrong:
+ *
+ *   - has_block() reads the CURRENT POST'S post_content only. A block placed in
+ *     a Full Site Editing template part, a synced pattern or a widget is invisible
+ *     to it — and an FSE template part is precisely where this block belongs, next
+ *     to order confirmation. The script would load with no configuration and every
+ *     lookup would fail silently.
+ *   - It sent an X-WP-Nonce to a route that is public by design. On any site with
+ *     page caching, the cached HTML carries a nonce older than its 24-hour life,
+ *     and WordPress answers a stale nonce on a cookie-authenticated request with a
+ *     hard 403 "Cookie check failed" — so the form broke for real customers while
+ *     doing nothing whatsoever to an attacker, who simply omits the header.
+ *
+ * Now the data is attached to the registered handle at init, unconditionally and
+ * with no nonce. Abuse control is the per-IP rate limit inside the route, which
+ * is the only thing that was ever actually protecting it.
  */
 add_action(
-	'wp_enqueue_scripts',
+	'init',
 	static function () {
-		if ( ! has_block( 'ailo/order-tracking-lookup' ) ) {
+		if ( ! function_exists( 'generate_block_asset_handle' ) ) {
 			return;
 		}
 		$handle = generate_block_asset_handle( 'ailo/order-tracking-lookup', 'viewScript' );
+		if ( ! wp_script_is( $handle, 'registered' ) ) {
+			return;
+		}
 		wp_localize_script(
 			$handle,
 			'ailoTrackSettings',
 			array(
-				'root'  => esc_url_raw( rest_url() ),
-				'nonce' => wp_create_nonce( 'wp_rest' ),
-				'i18n'  => array(
+				'root' => esc_url_raw( rest_url() ),
+				'i18n' => array(
 					'searching' => __( 'Searching…', 'ailo-order-tracking' ),
 					'notFound'  => __( 'We could not find a shipment for those details.', 'ailo-order-tracking' ),
 					'missing'   => __( 'Enter a tracking number, or an order number with the email or phone used on the order.', 'ailo-order-tracking' ),
@@ -65,5 +84,6 @@ add_action(
 				),
 			)
 		);
-	}
+	},
+	20
 );

@@ -7,3 +7,7 @@ vendor/
 *.log
 .DS_Store
 Thumbs.db
+
+# сурови фајлови од WooCommerce/WP што ревизорите ги симнуваат за проверка
+hposhelper.php
+class-wc-*.php

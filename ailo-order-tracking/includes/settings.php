@@ -123,9 +123,26 @@ add_action(
 				$slug = $slug . '-' . ( (int) $i + 1 );
 			}
 
-			$url = isset( $urls[ $i ] ) ? trim( (string) $urls[ $i ] ) : '';
-			if ( '' !== $url ) {
-				$url = esc_url_raw( $url, array( 'http', 'https' ) );
+			// ⚠️ Do NOT run the template through esc_url_raw() here: it strips
+			// { and }, so {tracking} would be silently destroyed on save and
+			// every carrier link would come out wrong. Validate the shape and
+			// store the template as typed; escaping happens at output time,
+			// after the placeholder has been substituted.
+			$url = isset( $urls[ $i ] ) ? trim( sanitize_text_field( $urls[ $i ] ) ) : '';
+			if ( '' !== $url && ! ailo_track_valid_url_template( $url ) ) {
+				$url = '';
+				add_action(
+					'admin_notices',
+					static function () use ( $label ) {
+						echo '<div class="notice notice-warning"><p>';
+						printf(
+							/* translators: %s: carrier name */
+							esc_html__( 'The tracking URL for %s was not saved: it must start with http:// or https:// and include a domain.', 'ailo-order-tracking' ),
+							esc_html( $label )
+						);
+						echo '</p></div>';
+					}
+				);
 			}
 
 			$out[ $slug ] = array(

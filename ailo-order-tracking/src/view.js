@@ -15,7 +15,6 @@
 
 	var settings = window.ailoTrackSettings || {};
 	var root = settings.root || '';
-	var nonce = settings.nonce || '';
 	var i18n = settings.i18n || {};
 
 	function text( tag, className, value ) {
@@ -95,10 +94,9 @@
 
 			fetch( root + 'ailo-track/v1/lookup', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': nonce,
-				},
+				// No X-WP-Nonce: the route is public by design, and a nonce baked into
+				// cached HTML goes stale and turns every lookup into a hard 403.
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify( body ),
 			} )
 				.then( function ( response ) {

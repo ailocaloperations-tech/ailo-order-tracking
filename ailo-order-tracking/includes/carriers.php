@@ -37,10 +37,45 @@ function ailo_track_get_carriers() {
 		}
 		$out[ $slug ] = array(
 			'label' => sanitize_text_field( $carrier['label'] ),
-			'url'   => isset( $carrier['url'] ) ? esc_url_raw( $carrier['url'] ) : '',
+			// ⚠️ NOT esc_url_raw(). It strips { and }, which destroys the whole
+			// point of the template: https://x.com/t?c={tracking} came back as
+			// https://x.com/t?c=tracking, str_replace then found nothing to
+			// substitute, and every carrier link on every store was wrong.
+			// The template is stored raw and validated on the way in; escaping
+			// happens on the way OUT, after {tracking} has been substituted.
+			'url'   => isset( $carrier['url'] ) ? (string) $carrier['url'] : '',
 		);
 	}
 	return $out;
+}
+
+/**
+ * Is this an acceptable tracking URL template?
+ *
+ * Checked when the shop owner saves, not when a page renders. Scheme must be
+ * http or https — that alone rules out javascript:, data: and anything else that
+ * would turn a carrier link into an XSS vector — and there must be a host.
+ *
+ * Deliberately does NOT call wp_http_validate_url(): that performs a blocking
+ * gethostbyname() and rejects private hosts, which is right for a server-side
+ * fetch and wrong for a link a human clicks. We never fetch this URL.
+ *
+ * @param string $template Raw template as typed.
+ * @return bool
+ */
+function ailo_track_valid_url_template( $template ) {
+	$template = trim( (string) $template );
+	if ( '' === $template ) {
+		return false;
+	}
+	// Validate the shape with the placeholder swapped for something inert, so
+	// the braces cannot upset the parser.
+	$probe  = str_replace( '{tracking}', 'AILOTRACKPROBE', $template );
+	$parts  = wp_parse_url( $probe );
+	$scheme = isset( $parts['scheme'] ) ? strtolower( $parts['scheme'] ) : '';
+	$host   = isset( $parts['host'] ) ? $parts['host'] : '';
+
+	return in_array( $scheme, array( 'http', 'https' ), true ) && '' !== $host;
 }
 
 /**
@@ -57,15 +92,21 @@ function ailo_track_build_url( $carrier_slug, $number ) {
 		return '';
 	}
 
-	$url = str_replace( '{tracking}', rawurlencode( $number ), $carriers[ $slug ]['url'] );
+	$template = $carriers[ $slug ]['url'];
 
-	/**
-	 * A shop owner's URL template is stored with esc_url_raw, but the template
-	 * could still be http:// or a scheme we do not want to hand to a customer.
-	 * wp_http_validate_url rejects anything that is not a public http(s) URL.
-	 */
-	$safe = wp_http_validate_url( $url );
-	return $safe ? $safe : '';
+	// Re-check the shape here too. The option could have been written by an
+	// older version of this plugin, by WP-CLI, or by another plugin, and this
+	// value ends up in an href.
+	if ( ! ailo_track_valid_url_template( $template ) ) {
+		return '';
+	}
+
+	// Substitute FIRST, escape after: escaping the template would eat the braces.
+	$url = str_replace( '{tracking}', rawurlencode( $number ), $template );
+
+	// esc_url_raw for storage-shaped output; callers escape again with esc_url()
+	// when printing. No network call here — this runs on every rendered link.
+	return esc_url_raw( $url, array( 'http', 'https' ) );
 }
 
 /**

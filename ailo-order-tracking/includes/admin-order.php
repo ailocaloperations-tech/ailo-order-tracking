@@ -108,7 +108,11 @@ function ailo_track_save_metabox( $order_id ) {
 	) {
 		return;
 	}
-	if ( ! current_user_can( 'edit_shop_order', $order_id ) ) {
+	// edit_shop_order is not a reliable meta cap on HPOS before WooCommerce 10.7:
+	// the mapping can fail and the save then aborts silently, losing what the shop
+	// manager just typed. WooCommerce core pairs it with manage_woocommerce for
+	// exactly this reason, so we mirror that rather than inventing our own rule.
+	if ( ! current_user_can( 'edit_shop_order', $order_id ) && ! current_user_can( 'manage_woocommerce' ) ) {
 		return;
 	}
 

@@ -1,0 +1,40 @@
+name: release
+
+# The published zip MUST contain build/, because build output is not in version
+# control — a plugin installed from a source clone has no block. This builds it.
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - working-directory: ailo-order-tracking
+        run: npm ci || npm install
+      - working-directory: ailo-order-tracking
+        run: npm run build
+      - name: Fail if the block did not build
+        run: test -f ailo-order-tracking/build/block.json
+      - name: Package
+        run: |
+          mkdir -p dist
+          zip -r dist/ailo-order-tracking.zip ailo-order-tracking \
+            -x 'ailo-order-tracking/node_modules/*' \
+               'ailo-order-tracking/src/*' \
+               'ailo-order-tracking/package.json' \
+               'ailo-order-tracking/package-lock.json'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ailo-order-tracking
+          path: dist/ailo-order-tracking.zip
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ailo-order-tracking.zip

@@ -14,6 +14,7 @@ import { registerBlockType } from '@wordpress/blocks';
 import { useBlockProps, InspectorControls, RichText } from '@wordpress/block-editor';
 import { PanelBody, SelectControl, ToggleControl, TextControl } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
+import './style.css';
 import metadata from './block.json';
 
 registerBlockType( metadata.name, {

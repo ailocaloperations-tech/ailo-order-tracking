@@ -30,7 +30,6 @@ define( 'AILO_TRACK_URL', plugin_dir_url( __FILE__ ) );
  */
 define( 'AILO_TRACK_META_NUMBER', '_ailo_track_number' );
 define( 'AILO_TRACK_META_CARRIER', '_ailo_track_carrier' );
-define( 'AILO_TRACK_META_SENT', '_ailo_track_notified_at' );
 
 /**
  * HPOS (custom order tables) compatibility.

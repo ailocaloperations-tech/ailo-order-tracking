@@ -116,9 +116,11 @@ function ailo_track_save_metabox( $order_id ) {
 		return;
 	}
 
-	$number = isset( $_POST['ailo_track_number'] )
-		? ailo_track_normalize_number( wp_unslash( $_POST['ailo_track_number'] ) )
-		: '';
+	// is_scalar guard: a crafted request can post an array here. Without it,
+	// preg_replace inside the normaliser raises a PHP 8 warning and the order
+	// ends up with the literal string "ARRAY" as its tracking number.
+	$raw    = isset( $_POST['ailo_track_number'] ) ? wp_unslash( $_POST['ailo_track_number'] ) : '';
+	$number = is_scalar( $raw ) ? ailo_track_normalize_number( (string) $raw ) : '';
 
 	$carrier  = isset( $_POST['ailo_track_carrier'] ) ? sanitize_key( wp_unslash( $_POST['ailo_track_carrier'] ) ) : '';
 	$carriers = ailo_track_get_carriers();

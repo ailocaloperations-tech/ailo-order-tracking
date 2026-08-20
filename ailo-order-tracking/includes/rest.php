@@ -71,23 +71,21 @@ add_action(
  * @return string
  */
 function ailo_track_client_ip() {
-	$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
-
-	/**
-	 * Filters whether to trust proxy headers for rate limiting.
-	 *
-	 * @param bool $trust Default false.
-	 */
-	if ( apply_filters( 'ailo_track_trust_proxy_headers', false ) && isset( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
-		$forwarded = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) );
-		$parts     = explode( ',', $forwarded );
-		$candidate = trim( $parts[0] );
-		if ( filter_var( $candidate, FILTER_VALIDATE_IP ) ) {
-			$ip = $candidate;
+	// REMOTE_ADDR alone is wrong on any store behind a CDN or reverse proxy, and
+	// that is most of them: every visitor then arrives from the same edge address,
+	// so a single rate-limit bucket covers the whole shop and real customers
+	// collide with each other. WC_Geolocation::get_ip_address() is WooCommerce's
+	// own answer to this and already understands Cloudflare, X-Real-IP and
+	// X-Forwarded-For.
+	if ( class_exists( 'WC_Geolocation' ) ) {
+		$ip = WC_Geolocation::get_ip_address();
+		if ( '' !== $ip && filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			return $ip;
 		}
 	}
 
-	return $ip;
+	$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+	return filter_var( $ip, FILTER_VALIDATE_IP ) ? $ip : '';
 }
 
 /**
@@ -103,7 +101,10 @@ function ailo_track_client_ip() {
 function ailo_track_rate_limited( $register = false ) {
 	$ip = ailo_track_client_ip();
 	if ( '' === $ip ) {
-		return false;
+		// No usable address means no bucket, and a limiter that gives up when it
+		// cannot identify the caller is a limiter an attacker turns off. Fall back
+		// to a single shared bucket rather than to no limit at all.
+		$ip = 'unknown';
 	}
 	$key = 'ailo_track_rl_' . md5( $ip );
 
@@ -141,18 +142,11 @@ function ailo_track_rate_limited( $register = false ) {
 /**
  * Does the supplied contact match the billing email or phone on this order?
  *
- * ⚠️ The first version accepted a match on the LAST SIX DIGITS of the phone.
- * That was meant as convenience — customers type 070123456, +389 70 123 456 and
- * 00389 70 123 456 for the same number — but it turned the endpoint into an
- * oracle for six digits of a stranger's phone number: pick an order id, walk
- * six-digit suffixes, and a 200 tells you when you have them. A million
- * combinations is a lot for one person and nothing at all for a script, and the
- * per-IP rate limit is not what should be standing between a stranger and
- * somebody's phone number.
- *
- * Now: the full national number must match. To stay forgiving about how it was
- * typed, both sides are reduced to digits and, when one carries a country code
- * and the other does not, compared on the longer of the two lengths.
+ * The full national number must match, never a suffix of it. A suffix rule lets
+ * the CALLER decide how much of the number has to be right, which turns this
+ * endpoint into an oracle for the remaining digits of a stranger's phone number.
+ * Tolerance for how a number was typed belongs in normalisation, not in the
+ * comparison.
  *
  * @param WC_Order $order   Order.
  * @param string   $contact Email or phone as typed by the visitor.
@@ -169,25 +163,62 @@ function ailo_track_contact_matches( WC_Order $order, $contact ) {
 		return true;
 	}
 
-	$typed = preg_replace( '/\D+/', '', $contact );
-	$phone = preg_replace( '/\D+/', '', (string) $order->get_billing_phone() );
+	// Both sides are reduced to a comparable "national" form ONCE, and then must
+	// match in full. Comparing suffixes was the mistake in both earlier versions:
+	// with a suffix rule the attacker, not the shop, picks how much of the number
+	// has to be right — submit eight digits and only eight are ever checked.
+	$typed = ailo_track_national_number( $contact );
+	$phone = ailo_track_national_number( (string) $order->get_billing_phone() );
 
-	// Below 8 digits a "phone number" is not identifying enough to authorise on.
-	if ( strlen( $typed ) < 8 || strlen( $phone ) < 8 ) {
+	if ( '' === $typed || '' === $phone ) {
 		return false;
 	}
-	if ( hash_equals( $phone, $typed ) ) {
-		return true;
+	return hash_equals( $phone, $typed );
+}
+
+/**
+ * Reduce a phone number to a comparable national form.
+ *
+ * Customers write the same number as 070123456, 70 123 456, +389 70 123 456 and
+ * 00389 70 123 456. All four must compare equal, and none of them may be allowed
+ * to match a DIFFERENT number — which is what a suffix comparison permitted.
+ *
+ * Strategy: keep digits, drop an international prefix (00 or a leading + that
+ * preg has already removed leaves the country digits), then drop one leading
+ * zero. What remains is the subscriber number, compared in full.
+ *
+ * @param string $raw As typed or as stored.
+ * @return string Empty when the value is too short to authorise on.
+ */
+function ailo_track_national_number( $raw ) {
+	$digits = preg_replace( '/\D+/', '', (string) $raw );
+	if ( '' === $digits ) {
+		return '';
 	}
 
-	// One side may carry a country code or a leading zero the other lacks.
-	// Compare on the shorter length, but only when that is still most of the
-	// number — never on a short suffix.
-	$len = min( strlen( $typed ), strlen( $phone ) );
-	if ( $len < 8 ) {
-		return false;
+	// 00XXX… international prefix.
+	if ( 0 === strpos( $digits, '00' ) ) {
+		$digits = substr( $digits, 2 );
 	}
-	return hash_equals( substr( $phone, -$len ), substr( $typed, -$len ) );
+
+	/**
+	 * Filters the country calling code stripped before comparison.
+	 *
+	 * Defaults to the calling code of the store's own country, because that is
+	 * the number format the overwhelming majority of a shop's customers type.
+	 *
+	 * @param string $code Digits only, without + or 00. Empty disables stripping.
+	 */
+	$cc = (string) apply_filters( 'ailo_track_country_calling_code', '' );
+	if ( '' !== $cc && 0 === strpos( $digits, $cc ) && strlen( $digits ) > strlen( $cc ) ) {
+		$digits = substr( $digits, strlen( $cc ) );
+	}
+
+	$digits = ltrim( $digits, '0' );
+
+	// Below six digits this is not a phone number, and authorising on it would
+	// bring back exactly the guessing problem the suffix rule had.
+	return strlen( $digits ) >= 6 ? $digits : '';
 }
 
 /**
@@ -298,10 +329,15 @@ function ailo_track_resolve_order( $typed ) {
 		return null;
 	}
 
-	// When the store shows a different number than the ID, only accept the
-	// number the customer was actually shown.
+	// Only accept the number the customer was actually shown. On a store running
+	// a sequential-order-number plugin, order 500 may be displayed as 1000; the
+	// customer types 1000 and must not be handed order 1000.
+	//
+	// The earlier version of this guard also tested $order->get_id() !== $typed,
+	// which is dead: the order was fetched BY $typed, so that is never true and
+	// the whole condition could never fire.
 	$shown = preg_replace( '/\D+/', '', (string) $order->get_order_number() );
-	if ( '' !== $shown && (int) $shown !== $typed && $order->get_id() !== $typed ) {
+	if ( '' !== $shown && (int) $shown !== $typed ) {
 		return null;
 	}
 
@@ -311,24 +347,19 @@ function ailo_track_resolve_order( $typed ) {
 /**
  * Find the order carrying a tracking number.
  *
- * ⚠️ THIS FUNCTION LEAKED. The first version passed a `meta_query` to
- * wc_get_orders(). That works on HPOS and is silently DISCARDED on the legacy
- * post store: WC_Order_Data_Store_CPT lists meta_query in $unsupported_args and
- * WC_Data_Store_WP::get_wp_query_args() does `continue` on the key, so it never
- * reaches WP_Query. The warning goes through wc_doing_it_wrong(), which inside a
- * REST request only writes to error_log — invisible to the caller.
+ * Two independent defences, because on a public endpoint the query alone is not
+ * enough to rely on.
  *
- * What was left was: post_type=shop_order, posts_per_page=1, orderby=ID desc.
- * In other words, on every non-HPOS store this returned THE NEWEST ORDER IN THE
- * SHOP for any input at all. An anonymous POST with a made-up tracking number
- * came back 200 with a real customer's tracking number and carrier link, and
- * because nothing ever "failed", the rate limit never engaged.
+ * `meta_query` is NOT supported by the legacy (CPT) order data store: WooCommerce
+ * lists it as an unsupported argument and drops it before WP_Query, warning only
+ * through wc_doing_it_wrong(), which in a REST request writes to error_log and
+ * nothing else. A filter that disappears without a sound leaves "the newest order
+ * in the shop", which on a public route is a disclosure. Hence:
  *
- * Two independent defences now, because one of them already proved fallible:
  *   1. meta_key/meta_value, which BOTH data stores understand.
- *   2. The returned order's stored number is compared against the input. If the
- *      query ever degenerates again, the comparison fails and nothing is
- *      disclosed. Never trust a query to have filtered.
+ *   2. The stored number on the returned order is compared against the input
+ *      before anything is disclosed, so that if the filter is ever dropped again
+ *      the comparison fails closed.
  *
  * @param string $normalized Normalised tracking number.
  * @return WC_Order|null

@@ -37,12 +37,10 @@ function ailo_track_get_carriers() {
 		}
 		$out[ $slug ] = array(
 			'label' => sanitize_text_field( $carrier['label'] ),
-			// ⚠️ NOT esc_url_raw(). It strips { and }, which destroys the whole
-			// point of the template: https://x.com/t?c={tracking} came back as
-			// https://x.com/t?c=tracking, str_replace then found nothing to
-			// substitute, and every carrier link on every store was wrong.
+			// Not esc_url_raw() here: it strips { and }, which would destroy the
+			// {tracking} placeholder and leave a link pointing nowhere useful.
 			// The template is stored raw and validated on the way in; escaping
-			// happens on the way OUT, after {tracking} has been substituted.
+			// happens on the way OUT, once {tracking} has been substituted.
 			'url'   => isset( $carrier['url'] ) ? (string) $carrier['url'] : '',
 		);
 	}

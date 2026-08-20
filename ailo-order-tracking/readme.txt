@@ -1,8 +1,7 @@
 === Ailo Order Tracking ===
-Contributors: sashkomarkov
-Tags: woocommerce, shipment tracking, order tracking, delivery, shipping
+Tags: woocommerce, shipment tracking, order tracking, delivery
 Requires at least: 6.5
-Tested up to: 6.9
+Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 1.0.0
 License: GPLv2 or later
@@ -21,7 +20,7 @@ The plugin talks to nothing. There is no API, no key, no registration, and no ac
 The block gives customers two ways to find a shipment:
 
 * By **tracking number** — the number itself is the secret, so nothing else is needed.
-* By **order number plus the email or phone used on the order** — proof of ownership is always required here. Order numbers are sequential, so without that proof anyone could walk them and read other people's shipping data. The email must match, or the full phone number; a partial phone is not accepted.
+* By **order number plus the email or phone used on the order** — proof of ownership is always required here. Order numbers are sequential, so without that proof anyone could walk them and read other people's shipping data. The email must match, or the phone number in full once both are reduced to their national form.
 
 The response contains only the tracking number, the carrier name and the carrier link. Never a name, address, email, phone or order total. Failed attempts are rate limited per IP.
 
@@ -61,13 +60,6 @@ Yes. The plugin declares compatibility with custom order tables and uses `WC_Ord
 = Where is the source code? =
 
 https://github.com/ailocaloperations-tech/ailo-order-tracking — including the block source and the build setup.
-
-== Screenshots ==
-
-1. The tracking box on the order edit screen.
-2. The Order Tracking Lookup block in the editor, with its settings.
-3. The lookup form on the front end.
-4. Carrier settings under WooCommerce → Settings → Shipping.
 
 == Changelog ==
 

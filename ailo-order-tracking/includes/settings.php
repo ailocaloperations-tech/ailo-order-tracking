@@ -123,11 +123,9 @@ add_action(
 				$slug = $slug . '-' . ( (int) $i + 1 );
 			}
 
-			// ⚠️ Do NOT run the template through esc_url_raw() here: it strips
-			// { and }, so {tracking} would be silently destroyed on save and
-			// every carrier link would come out wrong. Validate the shape and
-			// store the template as typed; escaping happens at output time,
-			// after the placeholder has been substituted.
+			// Not esc_url_raw(): it strips { and }, so {tracking} would be
+			// destroyed on save. Validate the shape, store the template as
+			// typed, and escape at output time once the placeholder is gone.
 			$url = isset( $urls[ $i ] ) ? trim( sanitize_text_field( $urls[ $i ] ) ) : '';
 			if ( '' !== $url && ! ailo_track_valid_url_template( $url ) ) {
 				$url = '';

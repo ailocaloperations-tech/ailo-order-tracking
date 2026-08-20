@@ -6,13 +6,22 @@
   "category": "woocommerce",
   "icon": "location",
   "description": "A form where customers look up a shipment by tracking number, or by order number plus the email or phone used on the order.",
-  "keywords": [ "tracking", "shipment", "woocommerce", "delivery" ],
+  "keywords": [
+    "tracking",
+    "shipment",
+    "woocommerce",
+    "delivery"
+  ],
   "textdomain": "ailo-order-tracking",
   "attributes": {
     "mode": {
       "type": "string",
       "default": "both",
-      "enum": [ "tracking", "order", "both" ]
+      "enum": [
+        "tracking",
+        "order",
+        "both"
+      ]
     },
     "heading": {
       "type": "string",
@@ -28,7 +37,10 @@
     }
   },
   "supports": {
-    "align": [ "wide", "full" ],
+    "align": [
+      "wide",
+      "full"
+    ],
     "color": {
       "background": true,
       "text": true,
@@ -47,6 +59,6 @@
   },
   "editorScript": "file:./index.js",
   "viewScript": "file:./view.js",
-  "style": "file:./style.css",
+  "style": "file:./style-index.css",
   "render": "file:./render.php"
 }

@@ -24,11 +24,13 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist
+          # src/ and package.json STAY in the zip. Guideline 4 requires that the
+          # distributed plugin either contains human-readable source or links to
+          # where it lives; shipping only the minified build with no source is a
+          # rejection reason, and the few extra kilobytes are not worth arguing
+          # about with a reviewer.
           zip -r dist/ailo-order-tracking.zip ailo-order-tracking \
-            -x 'ailo-order-tracking/node_modules/*' \
-               'ailo-order-tracking/src/*' \
-               'ailo-order-tracking/package.json' \
-               'ailo-order-tracking/package-lock.json'
+            -x 'ailo-order-tracking/node_modules/*'
       - uses: actions/upload-artifact@v4
         with:
           name: ailo-order-tracking

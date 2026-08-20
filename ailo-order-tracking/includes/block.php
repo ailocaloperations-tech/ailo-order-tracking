@@ -36,29 +36,33 @@ add_action(
 			return;
 		}
 		register_block_type( $build );
+
+		// Without this the editor strings are shipped but untranslatable: the
+		// JSON translation files WordPress builds for a block are only loaded
+		// when the script handle is registered for translation.
+		if ( function_exists( 'wp_set_script_translations' ) ) {
+			wp_set_script_translations(
+				generate_block_asset_handle( 'ailo/order-tracking-lookup', 'editorScript' ),
+				'ailo-order-tracking',
+				AILO_TRACK_DIR . 'languages'
+			);
+		}
 	}
 );
 
 /**
  * Configuration for the front-end script.
  *
- * ⚠️ This used to hang off wp_enqueue_scripts behind has_block(). Both halves
- * were wrong:
+ * Attached unconditionally at init rather than behind has_block(), and with no
+ * nonce. Two reasons:
  *
- *   - has_block() reads the CURRENT POST'S post_content only. A block placed in
- *     a Full Site Editing template part, a synced pattern or a widget is invisible
- *     to it — and an FSE template part is precisely where this block belongs, next
- *     to order confirmation. The script would load with no configuration and every
- *     lookup would fail silently.
- *   - It sent an X-WP-Nonce to a route that is public by design. On any site with
- *     page caching, the cached HTML carries a nonce older than its 24-hour life,
- *     and WordPress answers a stale nonce on a cookie-authenticated request with a
- *     hard 403 "Cookie check failed" — so the form broke for real customers while
- *     doing nothing whatsoever to an attacker, who simply omits the header.
- *
- * Now the data is attached to the registered handle at init, unconditionally and
- * with no nonce. Abuse control is the per-IP rate limit inside the route, which
- * is the only thing that was ever actually protecting it.
+ *   - has_block() reads the current post's post_content only, so a block placed
+ *     in a Full Site Editing template part, a synced pattern or a widget is
+ *     invisible to it — and a template part is precisely where this block belongs.
+ *   - The lookup route is public by design. A nonce baked into page-cached HTML
+ *     outlives its window and then returns a hard 403 to real customers, while an
+ *     attacker simply omits the header. Abuse control is the per-IP rate limit
+ *     inside the route.
  */
 add_action(
 	'init',

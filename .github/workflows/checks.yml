@@ -127,6 +127,13 @@ jobs:
           node-version: '20'
       - working-directory: ailo-order-tracking
         run: npm install && npm run build
+      # tests/ and the PHPUnit config are development files. They are not in the
+      # ZIP that goes to WordPress.org — the release build copies only what ships
+      # — but Plugin Check scans the checked-out tree, where they are present,
+      # and rejects phpunit.xml.dist and the .phpunit.result.cache that a run
+      # leaves behind. Excluding them here makes the check see what a user would.
       - uses: wordpress/plugin-check-action@v1
         with:
           build-dir: ./ailo-order-tracking
+          exclude-directories: tests
+          exclude-files: phpunit.xml.dist,.phpunit.result.cache,package.json,package-lock.json

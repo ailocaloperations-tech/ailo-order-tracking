@@ -8,6 +8,10 @@ vendor/
 .DS_Store
 Thumbs.db
 
+# PHPUnit writes this next to phpunit.xml.dist on every run. Never ours to ship,
+# and Plugin Check rejects it outright as a hidden file.
+.phpunit.result.cache
+
 # Raw WooCommerce/WP files pulled down locally for review; never ours to ship
 hposhelper.php
 class-wc-*.php

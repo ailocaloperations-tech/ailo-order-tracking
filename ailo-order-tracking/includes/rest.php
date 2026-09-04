@@ -21,8 +21,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const AILO_TRACK_RATE_LIMIT   = 20;
-const AILO_TRACK_RATE_WINDOW  = 600;
+const AILO_TRACK_RATE_LIMIT     = 20;
+const AILO_TRACK_RATE_WINDOW    = 600;
 const AILO_TRACK_REST_NAMESPACE = 'ailo-track/v1';
 
 add_action(

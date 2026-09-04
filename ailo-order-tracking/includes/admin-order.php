@@ -119,6 +119,7 @@ function ailo_track_save_metabox( $order_id ) {
 	// is_scalar guard: a crafted request can post an array here. Without it,
 	// preg_replace inside the normaliser raises a PHP 8 warning and the order
 	// ends up with the literal string "ARRAY" as its tracking number.
+	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised on the next line by ailo_track_normalize_number(), which strips everything outside [A-Za-z0-9]; the is_scalar guard has to come first, so the two cannot be one statement.
 	$raw    = isset( $_POST['ailo_track_number'] ) ? wp_unslash( $_POST['ailo_track_number'] ) : '';
 	$number = is_scalar( $raw ) ? ailo_track_normalize_number( (string) $raw ) : '';
 

@@ -19,10 +19,18 @@ jobs:
         run: find ailo-order-tracking -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Install WPCS
         run: |
-          composer global require --dev wp-coding-standards/wpcs:^3 dealerdirect/phpcodesniffer-composer-installer --no-interaction
-          echo "$HOME/.composer/vendor/bin" >> $GITHUB_PATH
+          # Composer 2.2+ refuses to run a plugin that has not been allowed, and
+          # --no-interaction answers "no". Without this the sniffs install but
+          # never register, and phpcs then cannot find the WordPress standard.
+          composer global config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+          composer global require wp-coding-standards/wpcs:"^3" --no-interaction
+          # Not $HOME/.composer: Composer 2 keeps its home at $HOME/.config/composer
+          # on Linux. Ask it rather than guessing.
+          echo "$(composer config --global home)/vendor/bin" >> $GITHUB_PATH
       - name: phpcs
-        run: phpcs --standard=WordPress --extensions=php --ignore=*/build/* ailo-order-tracking
+        # No --standard: that would override phpcs.xml, which is where the
+        # WooCommerce capabilities and the plugin's own sanitiser are declared.
+        run: phpcs
 
   js:
     name: Block build

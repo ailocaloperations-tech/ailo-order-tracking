@@ -73,7 +73,7 @@ function ailo_track_get_carriers() {
 		if ( '' === $slug ) {
 			continue;
 		}
-		$url = isset( $carrier['url'] ) && is_scalar( $carrier['url'] ) ? (string) $carrier['url'] : '';
+		$url           = isset( $carrier['url'] ) && is_scalar( $carrier['url'] ) ? (string) $carrier['url'] : '';
 		$safe[ $slug ] = array(
 			'label' => sanitize_text_field( (string) $carrier['label'] ),
 			'url'   => $url,

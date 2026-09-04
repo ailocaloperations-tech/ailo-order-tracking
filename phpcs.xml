@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<ruleset name="Ailo Order Tracking">
+	<description>WordPress Coding Standards, plus the few facts the sniffs cannot work out on their own.</description>
+
+	<file>ailo-order-tracking</file>
+
+	<exclude-pattern>*/build/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="colors"/>
+	<arg value="ps"/>
+
+	<rule ref="WordPress"/>
+
+	<!--
+		Both capabilities are real and come from WooCommerce, which registers
+		them at runtime. The sniff only knows core capabilities, so without this
+		it reports two working permission checks as probable typos.
+	-->
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<element value="manage_woocommerce"/>
+				<element value="edit_shop_order"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
+		ailo_track_normalize_number() strips everything outside [A-Za-z0-9] and
+		truncates to 64 characters, which is stricter than any core sanitiser.
+		Declaring it here is how the sniff is meant to be told about a project's
+		own sanitisers, rather than silencing the rule.
+	-->
+	<rule ref="WordPress.Security.ValidatedSanitizedInput">
+		<properties>
+			<property name="customSanitizingFunctions" type="array">
+				<element value="ailo_track_normalize_number"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Text domain must match the plugin header. -->
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="ailo-order-tracking"/>
+			</property>
+		</properties>
+	</rule>
+
+	<config name="minimum_wp_version" value="6.5"/>
+	<config name="testVersion" value="7.4-"/>
+</ruleset>

@@ -7,18 +7,18 @@
  * DOM instead of concatenating HTML means a future change to the response can
  * never turn into an injection.
  *
- * @package AiloOrderTracking
+ * @package
  */
 
 ( function () {
 	'use strict';
 
-	var settings = window.ailoTrackSettings || {};
-	var root = settings.root || '';
-	var i18n = settings.i18n || {};
+	const settings = window.ailoTrackSettings || {};
+	const root = settings.root || '';
+	const i18n = settings.i18n || {};
 
 	function text( tag, className, value ) {
-		var el = document.createElement( tag );
+		const el = document.createElement( tag );
 		if ( className ) {
 			el.className = className;
 		}
@@ -33,16 +33,18 @@
 	}
 
 	function showResult( box, data, withLink ) {
-		var wrap = document.createElement( 'div' );
+		const wrap = document.createElement( 'div' );
 		wrap.className = 'ailo-track__found';
 
 		if ( data.carrier ) {
-			wrap.appendChild( text( 'p', 'ailo-track__carrier', data.carrier ) );
+			wrap.appendChild(
+				text( 'p', 'ailo-track__carrier', data.carrier )
+			);
 		}
 		wrap.appendChild( text( 'p', 'ailo-track__number', data.tracking ) );
 
 		if ( withLink && data.url ) {
-			var a = document.createElement( 'a' );
+			const a = document.createElement( 'a' );
 			a.className = 'ailo-track__link';
 			a.href = data.url;
 			a.target = '_blank';
@@ -55,28 +57,33 @@
 	}
 
 	function wire( block ) {
-		var form = block.querySelector( '.ailo-track__form' );
-		var box = block.querySelector( '.ailo-track__result' );
+		const form = block.querySelector( '.ailo-track__form' );
+		const box = block.querySelector( '.ailo-track__result' );
 		if ( ! form || ! box ) {
 			return;
 		}
 
-		var withLink = block.getAttribute( 'data-carrier-link' ) === '1';
-		var button = form.querySelector( '.ailo-track__submit' );
+		const withLink = block.getAttribute( 'data-carrier-link' ) === '1';
+		const button = form.querySelector( '.ailo-track__submit' );
 
 		form.addEventListener( 'submit', function ( event ) {
 			event.preventDefault();
 
-			var trackingField = form.querySelector( '[name="tracking"]' );
-			var orderField = form.querySelector( '[name="order_id"]' );
-			var contactField = form.querySelector( '[name="contact"]' );
+			const trackingField = form.querySelector( '[name="tracking"]' );
+			const orderField = form.querySelector( '[name="order_id"]' );
+			const contactField = form.querySelector( '[name="contact"]' );
 
-			var tracking = trackingField ? trackingField.value.trim() : '';
-			var body;
+			const tracking = trackingField ? trackingField.value.trim() : '';
+			let body;
 
 			if ( tracking ) {
-				body = { mode: 'tracking', tracking: tracking };
-			} else if ( orderField && contactField && orderField.value.trim() && contactField.value.trim() ) {
+				body = { mode: 'tracking', tracking };
+			} else if (
+				orderField &&
+				contactField &&
+				orderField.value.trim() &&
+				contactField.value.trim()
+			) {
 				body = {
 					mode: 'order',
 					order_id: parseInt( orderField.value, 10 ) || 0,
@@ -101,21 +108,26 @@
 			} )
 				.then( function ( response ) {
 					return response.json().then( function ( data ) {
-						return { ok: response.ok, data: data };
+						return { ok: response.ok, data };
 					} );
 				} )
 				.then( function ( result ) {
 					if ( ! result.ok ) {
 						showMessage(
 							box,
-							( result.data && result.data.message ) || i18n.notFound || 'Not found.'
+							( result.data && result.data.message ) ||
+								i18n.notFound ||
+								'Not found.'
 						);
 						return;
 					}
 					showResult( box, result.data, withLink );
 				} )
 				.catch( function () {
-					showMessage( box, i18n.error || 'Something went wrong. Please try again.' );
+					showMessage(
+						box,
+						i18n.error || 'Something went wrong. Please try again.'
+					);
 				} )
 				.finally( function () {
 					if ( button ) {

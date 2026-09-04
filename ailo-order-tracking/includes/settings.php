@@ -101,9 +101,17 @@ add_action(
 			return;
 		}
 
+		// These three arrive as parallel arrays, one entry per carrier row, and
+		// every element is sanitised inside the loop below: sanitize_text_field()
+		// for the label, sanitize_key() for the slug, and sanitize_text_field()
+		// plus ailo_track_valid_url_template() for the URL. The sniff reports the
+		// assignment because it cannot follow sanitisation that happens per
+		// element further down, so the ignore is on the assignment only.
+		// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$labels = isset( $_POST['ailo_track_carrier_label'] ) ? (array) wp_unslash( $_POST['ailo_track_carrier_label'] ) : array();
 		$urls   = isset( $_POST['ailo_track_carrier_url'] ) ? (array) wp_unslash( $_POST['ailo_track_carrier_url'] ) : array();
 		$slugs  = isset( $_POST['ailo_track_carrier_slug'] ) ? (array) wp_unslash( $_POST['ailo_track_carrier_slug'] ) : array();
+		// phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		$out = array();
 		foreach ( $labels as $i => $label ) {

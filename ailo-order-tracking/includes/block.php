@@ -2,10 +2,10 @@
 /**
  * Block registration.
  *
- * register_block_type() is pointed at the BUILD output, not at src/, because
- * block.json in build/ carries the asset handles that @wordpress/scripts writes
- * into index.asset.php. Registering src/ directly appears to work in the editor
- * and then fails silently on a real install.
+ * Registration points at the BUILD output, not at src/, because block.json in
+ * build/ carries the asset handles that @wordpress/scripts writes into
+ * index.asset.php. Pointing register_block_type() at src/ directly appears to
+ * work in the editor and then fails silently on a real install.
  *
  * @package AiloOrderTracking
  */

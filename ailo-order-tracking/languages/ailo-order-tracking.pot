@@ -1,0 +1,199 @@
+# Copyright (C) 2026 Sashko Markov
+# This file is distributed under the GPL-2.0-or-later license.
+msgid ""
+msgstr ""
+"Project-Id-Version: Ailo Order Tracking 1.0.0\n"
+"Report-Msgid-Bugs-To: https://github.com/ailocaloperations-tech/ailo-order-tracking/issues\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Domain: ailo-order-tracking\n"
+
+#: ailo-order-tracking.php:69
+msgid "Ailo Order Tracking needs WooCommerce to be installed and active."
+msgstr ""
+
+#: includes/admin-order.php:25 includes/emails.php:37 includes/emails.php:50
+msgid "Shipment tracking"
+msgstr ""
+
+#: includes/admin-order.php:54 src/index.js:80 src/render.php:52
+msgid "Tracking number"
+msgstr ""
+
+#: includes/admin-order.php:59
+msgid "Carrier"
+msgstr ""
+
+#: includes/admin-order.php:61
+msgid "— none —"
+msgstr ""
+
+#: includes/admin-order.php:74
+msgid "No carriers configured yet. %s"
+msgstr ""
+
+#: includes/admin-order.php:75
+msgid "Add one"
+msgstr ""
+
+#: includes/admin-order.php:83
+msgid "Open tracking page"
+msgstr ""
+
+#: includes/block.php:29
+msgid "Ailo Order Tracking: the block is missing. Install the plugin from a release zip, or if you cloned the source repository, run \"npm install && npm run build\" in the plugin folder."
+msgstr ""
+
+#: includes/block.php:83
+msgid "Searching…"
+msgstr ""
+
+#: includes/block.php:84 includes/rest.php:244
+msgid "We could not find a shipment for those details."
+msgstr ""
+
+#: includes/block.php:85
+msgid "Enter a tracking number, or an order number with the email or phone used on the order."
+msgstr ""
+
+#: includes/block.php:86
+msgid "Something went wrong. Please try again."
+msgstr ""
+
+#: includes/block.php:87
+msgid "Open carrier page"
+msgstr ""
+
+#: includes/emails.php:61
+msgid "Track this shipment"
+msgstr ""
+
+#: includes/orders-list.php:28 includes/orders-list.php:32
+msgid "Tracking"
+msgstr ""
+
+#: includes/orders-list.php:53
+msgid "No tracking number"
+msgstr ""
+
+#: includes/rest.php:234
+msgid "Too many attempts. Please try again in a few minutes."
+msgstr ""
+
+#: includes/rest.php:251
+msgid "Please enter your order number and the email or phone used on the order."
+msgstr ""
+
+#: includes/rest.php:267
+msgid "This order does not have a tracking number yet."
+msgstr ""
+
+#: includes/rest.php:278
+msgid "Please enter a tracking number."
+msgstr ""
+
+#: includes/settings.php:18
+msgid "Order tracking"
+msgstr ""
+
+#: includes/settings.php:41
+msgid "Carriers"
+msgstr ""
+
+#: includes/settings.php:44
+msgid "Add the carriers you ship with. The tracking URL is a template: put {tracking} where the carrier expects the tracking number. Leave the URL empty and the number is shown without a link."
+msgstr ""
+
+#: includes/settings.php:53
+msgid "Name"
+msgstr ""
+
+#: includes/settings.php:54
+msgid "Tracking URL template"
+msgstr ""
+
+#: includes/settings.php:69
+msgid "e.g. National Post"
+msgstr ""
+
+#: includes/settings.php:81
+msgid "Clear the name to remove a carrier. Orders already using it keep their tracking number."
+msgstr ""
+
+#: includes/settings.php:138
+msgid "The tracking URL for %s was not saved: it must start with http:// or https:// and include a domain."
+msgstr ""
+
+#: src/index.js:31
+msgid "Lookup settings"
+msgstr ""
+
+#: src/index.js:33
+msgid "What customers can search by"
+msgstr ""
+
+#: src/index.js:36
+msgid "Tracking number only"
+msgstr ""
+
+#: src/index.js:37
+msgid "Order number + email or phone"
+msgstr ""
+
+#: src/index.js:38
+msgid "Both"
+msgstr ""
+
+#: src/index.js:41
+msgid "Looking up by order number always requires the email or phone on the order, so order numbers cannot be walked to harvest shipping data."
+msgstr ""
+
+#: src/index.js:48
+msgid "Link to the carrier page"
+msgstr ""
+
+#: src/index.js:51
+msgid "Shown only for carriers that have a tracking URL configured."
+msgstr ""
+
+#: src/index.js:58
+msgid "Placeholder text"
+msgstr ""
+
+#: src/index.js:61 src/index.js:86 src/render.php:27
+msgid "e.g. ABC123456789"
+msgstr ""
+
+#: src/index.js:74
+msgid "Track your order"
+msgstr ""
+
+#: src/index.js:95 src/render.php:68
+msgid "Order number"
+msgstr ""
+
+#: src/index.js:101
+msgid "Email or phone on the order"
+msgstr ""
+
+#: src/index.js:109 src/render.php:85
+msgid "Track"
+msgstr ""
+
+#: src/index.js:113
+msgid "Preview only — the form works on the published page."
+msgstr ""
+
+#: src/render.php:62
+msgid "or"
+msgstr ""
+
+#: src/render.php:76
+msgid "Email or phone used on the order"
+msgstr ""
+
+#: src/render.php:94
+msgid "Looking up a shipment needs JavaScript. Your tracking number is also in your order confirmation email."
+msgstr ""

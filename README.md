@@ -1,0 +1,126 @@
+# Ailo Order Tracking
+
+Carrier-agnostic shipment tracking for WooCommerce. No external service, no API key, no account.
+
+Add a tracking number and carrier to any WooCommerce order, show it in the customer's
+email, and let customers look the shipment up from a block on your site.
+
+The plugin makes **no outbound requests at all**. You define carriers yourself as a name
+plus a URL template, so it works with a national post office, a local courier, or a
+freight company that has never heard of WordPress.
+
+- **Requires:** WordPress 6.5+, WooCommerce, PHP 7.4+
+- **License:** GPL-2.0-or-later
+- **Status:** 1.0.0
+
+---
+
+## Why it is built this way
+
+The interesting decisions are not in the feature list, so they are written down here.
+
+### Order-number lookup requires proof of ownership
+
+The block lets a customer search two ways, and they are not equally safe:
+
+- **By tracking number.** The number itself is the secret — the customer got it from the
+  shop, and it is not guessable. Nothing else is needed.
+- **By order number.** Order numbers are *sequential*. Without proof of ownership anyone
+  could walk them and read other people's shipping data. So this path always requires the
+  billing email, or the phone number in full once both sides are reduced to their national
+  form.
+
+A successful response contains only the tracking number, the carrier name and the carrier
+link. Never a name, address, email, phone or order total.
+
+Failed attempts are rate limited, and two details matter:
+
+- **Only failures count.** A customer who checks the same valid tracking number ten times
+  is not doing anything wrong. Someone trying ten different contacts against one order
+  number is.
+- **The bucket key comes from `WC_Geolocation::get_ip_address()`**, not from
+  `REMOTE_ADDR`. Behind a CDN every visitor arrives from the same edge address, so
+  `REMOTE_ADDR` would put the whole shop in one bucket and real customers would collide
+  with each other. Trusting `X-Forwarded-For` directly is the opposite mistake — a caller
+  can forge it and get a fresh bucket per request, which makes the limit decorative.
+  WooCommerce's own resolver already knows when to believe a proxy header and when not to.
+
+### One codebase for both order storage backends
+
+WooCommerce keeps orders in High-Performance Order Storage (custom tables) or in the
+legacy post store, and a shop can be on either. All order data here is read and written
+through `WC_Order` rather than `get_post_meta()`, and the admin box, the orders-list column
+and the settings screen are registered for both.
+
+Compatibility is declared on `before_woocommerce_init`:
+
+```php
+FeaturesUtil::declare_compatibility( 'custom_order_tables', AILO_TRACK_FILE, true );
+FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', AILO_TRACK_FILE, true );
+```
+
+Declaring later has no effect, and WooCommerce then marks the plugin incompatible — which
+silently hides it from every store that has HPOS switched on.
+
+There is a second, subtler trap this code avoids. `meta_query` is **not supported** by the
+legacy order data store: it is accepted and then dropped, so a query meant to find one
+order returns whatever came first. Lookups here use `meta_key` / `meta_value`, which are
+portable across both stores, and then re-verify the returned order with `hash_equals`
+before answering.
+
+### Carrier URLs are stored raw and validated
+
+A tracking URL is a template — `https://example.com/track?code={tracking}`. Running it
+through `esc_url_raw()` on save strips the braces, so the template is stored as entered and
+validated by its own checker instead.
+
+### The block is server-rendered
+
+`Order Tracking Lookup` renders on the server and inherits colour, spacing and typography
+from the theme rather than shipping its own design. It can go in a page or in a Full Site
+Editing template part.
+
+---
+
+## Install
+
+1. Activate the plugin. WooCommerce must be active.
+2. **WooCommerce → Settings → Shipping → Order tracking** — add your carriers. Put
+   `{tracking}` where the carrier expects the number.
+3. Add the **Order Tracking Lookup** block to a page.
+4. On any order, fill in the tracking number and pick the carrier.
+
+## Develop
+
+```bash
+cd ailo-order-tracking
+npm install
+npm run start     # watch
+npm run build     # production
+```
+
+The block source lives in `src/`. `npm run build` emits the compiled asset and
+`style-index.css`, which is what `src/block.json` points at — not `style.css`.
+
+Translations: `languages/ailo-order-tracking.pot` carries all 47 translatable strings.
+
+## Layout
+
+```
+ailo-order-tracking.php      bootstrap, constants, HPOS declaration
+includes/
+  admin-order.php            the tracking box on the order screen
+  orders-list.php            the orders-list column
+  order-meta.php             reading and writing through WC_Order
+  carriers.php               carrier storage and URL-template validation
+  rest.php                   the lookup endpoint, ownership checks, rate limiting
+  emails.php                 tracking block in customer emails
+  block.php                  block registration
+  settings.php               the settings screen
+src/                         block source and server-side render
+uninstall.php                cleanup
+```
+
+## Licence
+
+GPL-2.0-or-later. See [LICENSE](LICENSE).

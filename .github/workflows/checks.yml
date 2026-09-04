@@ -32,6 +32,76 @@ jobs:
         # WooCommerce capabilities and the plugin's own sanitiser are declared.
         run: phpcs
 
+  tests:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mariadb:10.11
+        env:
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
+        ports: [ '3306:3306' ]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mysqli, zip, gd
+          tools: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - working-directory: ailo-order-tracking
+        run: npm install && npm run build
+
+      # WordPress and its test library, fetched from GitHub rather than through
+      # bin/install-wp-tests.sh: that script needs svn, which is one more thing
+      # to install on a runner that already has curl and tar.
+      - name: Fetch WordPress, WooCommerce and the test library
+        run: |
+          set -e
+          WP=$(curl -sS https://api.wordpress.org/core/version-check/1.7/ | grep -o '"version":"[0-9.]*"' | head -1 | cut -d'"' -f4)
+          echo "WordPress $WP"
+          curl -sSL -o wp.tar.gz "https://wordpress.org/wordpress-${WP}.tar.gz"
+          mkdir -p /tmp/wp && tar xzf wp.tar.gz -C /tmp/wp --strip-components=1
+
+          # The test library lives in wordpress-develop, whose tags carry a
+          # patch number even when the core release does not (7.1 -> 7.1.0).
+          case "$WP" in *.*.*) TAG="$WP" ;; *) TAG="$WP.0" ;; esac
+          curl -sSL -o wpdev.tar.gz "https://codeload.github.com/WordPress/wordpress-develop/tar.gz/refs/tags/$TAG"
+          mkdir -p /tmp/wpdev && tar xzf wpdev.tar.gz -C /tmp/wpdev --strip-components=1
+          mkdir -p /tmp/wp-tests-lib
+          cp -r /tmp/wpdev/tests/phpunit/includes /tmp/wp-tests-lib/
+          cp -r /tmp/wpdev/tests/phpunit/data /tmp/wp-tests-lib/
+          cp /tmp/wpdev/wp-tests-config-sample.php /tmp/wp-tests-lib/wp-tests-config.php
+          sed -i "s#dirname( __FILE__ ) . '/src/'#'/tmp/wp/'#" /tmp/wp-tests-lib/wp-tests-config.php
+          sed -i "s/youremptytestdbnamehere/wp_tests/;s/yourusernamehere/root/;s/yourpasswordhere//" /tmp/wp-tests-lib/wp-tests-config.php
+          sed -i "s/localhost/127.0.0.1/" /tmp/wp-tests-lib/wp-tests-config.php
+
+          POLY=$(curl -sS https://api.github.com/repos/Yoast/PHPUnit-Polyfills/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4)
+          curl -sSL -o poly.tar.gz "https://codeload.github.com/Yoast/PHPUnit-Polyfills/tar.gz/refs/tags/$POLY"
+          mkdir -p /tmp/phpunit-polyfills && tar xzf poly.tar.gz -C /tmp/phpunit-polyfills --strip-components=1
+
+          WOO=$(curl -sS https://api.wordpress.org/plugins/info/1.0/woocommerce.json | grep -o '"version":"[0-9.]*"' | head -1 | cut -d'"' -f4)
+          echo "WooCommerce $WOO"
+          curl -sSL -o woo.zip "https://downloads.wordpress.org/plugin/woocommerce.${WOO}.zip"
+          mkdir -p /tmp/wp/wp-content/plugins && unzip -q -o woo.zip -d /tmp/wp/wp-content/plugins
+
+          mysql -h 127.0.0.1 -u root -e "CREATE DATABASE wp_tests;"
+          curl -sSL -o /tmp/phpunit.phar https://phar.phpunit.de/phpunit-9.phar
+
+      - name: PHPUnit
+        working-directory: ailo-order-tracking
+        env:
+          WP_TESTS_DIR: /tmp/wp-tests-lib
+          WP_TESTS_CONFIG_FILE_PATH: /tmp/wp-tests-lib/wp-tests-config.php
+          WP_TESTS_PHPUNIT_POLYFILLS_PATH: /tmp/phpunit-polyfills
+          WC_PLUGIN_FILE: /tmp/wp/wp-content/plugins/woocommerce/woocommerce.php
+        run: php /tmp/phpunit.phar --configuration phpunit.xml.dist
+
   js:
     name: Block build
     runs-on: ubuntu-latest

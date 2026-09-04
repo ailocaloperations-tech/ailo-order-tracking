@@ -51,6 +51,38 @@
 		</properties>
 	</rule>
 
+	<!--
+		Tests are held to the same standard as the plugin except for six sniffs
+		that describe production code and not test code. Listed one by one, with
+		the reason, rather than excluding the directory: everything not named here
+		still applies, including every security sniff.
+	-->
+	<rule ref="Squiz.Commenting.FunctionComment.Missing">
+		<!-- A test method's name is its documentation. test_a_partial_phone_number_is_refused
+		     says more than a docblock repeating it would. -->
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment.WrongStyle">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.Commenting.DocComment.MissingShort">
+		<!-- @covers annotations stand alone above a test class. -->
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.Commenting.DocComment.LongNotCapital">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.CodeAnalysis.UnusedFunctionParameter">
+		<!-- An action listener has to accept the hook's full signature even when
+		     the assertion only looks at two of the arguments. -->
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.Security.EscapeOutput">
+		<!-- The only "output" in a test is a PHPUnit failure message on the
+		     command line, which is never rendered as HTML. -->
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+
 	<config name="minimum_wp_version" value="6.5"/>
 	<config name="testVersion" value="7.4-"/>
 </ruleset>

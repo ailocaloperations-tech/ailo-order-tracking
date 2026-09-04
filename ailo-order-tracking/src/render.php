@@ -15,68 +15,68 @@
 
 defined( 'ABSPATH' ) || exit;
 
-$ailo_mode    = isset( $attributes['mode'] ) ? (string) $attributes['mode'] : 'both';
-$ailo_heading = isset( $attributes['heading'] ) ? (string) $attributes['heading'] : '';
-$ailo_link    = ! empty( $attributes['showCarrierLink'] );
-$ailo_place   = isset( $attributes['placeholderText'] ) ? (string) $attributes['placeholderText'] : '';
+$ailo_track_mode    = isset( $attributes['mode'] ) ? (string) $attributes['mode'] : 'both';
+$ailo_track_heading = isset( $attributes['heading'] ) ? (string) $attributes['heading'] : '';
+$ailo_track_link    = ! empty( $attributes['showCarrierLink'] );
+$ailo_track_place   = isset( $attributes['placeholderText'] ) ? (string) $attributes['placeholderText'] : '';
 
-if ( ! in_array( $ailo_mode, array( 'tracking', 'order', 'both' ), true ) ) {
-	$ailo_mode = 'both';
+if ( ! in_array( $ailo_track_mode, array( 'tracking', 'order', 'both' ), true ) ) {
+	$ailo_track_mode = 'both';
 }
-if ( '' === $ailo_place ) {
-	$ailo_place = __( 'e.g. ABC123456789', 'ailo-order-tracking' );
+if ( '' === $ailo_track_place ) {
+	$ailo_track_place = __( 'e.g. ABC123456789', 'ailo-order-tracking' );
 }
 
-$ailo_show_tracking = in_array( $ailo_mode, array( 'tracking', 'both' ), true );
-$ailo_show_order    = in_array( $ailo_mode, array( 'order', 'both' ), true );
+$ailo_track_show_tracking = in_array( $ailo_track_mode, array( 'tracking', 'both' ), true );
+$ailo_track_show_order    = in_array( $ailo_track_mode, array( 'order', 'both' ), true );
 
 // Unique per instance so several blocks on one page keep their labels tied to
 // the right inputs — otherwise duplicate ids break the label/for relationship
 // and screen readers announce the wrong field.
-$ailo_uid = wp_unique_id( 'ailo-track-' );
+$ailo_track_uid = wp_unique_id( 'ailo-track-' );
 
-$ailo_wrapper = get_block_wrapper_attributes( array( 'class' => 'ailo-track' ) );
+$ailo_track_wrapper = get_block_wrapper_attributes( array( 'class' => 'ailo-track' ) );
 ?>
-<div <?php echo wp_kses_data( $ailo_wrapper ); ?>
-	data-mode="<?php echo esc_attr( $ailo_mode ); ?>"
-	data-carrier-link="<?php echo $ailo_link ? '1' : '0'; ?>">
+<div <?php echo wp_kses_data( $ailo_track_wrapper ); ?>
+	data-mode="<?php echo esc_attr( $ailo_track_mode ); ?>"
+	data-carrier-link="<?php echo $ailo_track_link ? '1' : '0'; ?>">
 
-	<?php if ( '' !== $ailo_heading ) : ?>
-		<h2 class="ailo-track__heading"><?php echo esc_html( $ailo_heading ); ?></h2>
+	<?php if ( '' !== $ailo_track_heading ) : ?>
+		<h2 class="ailo-track__heading"><?php echo esc_html( $ailo_track_heading ); ?></h2>
 	<?php endif; ?>
 
 	<form class="ailo-track__form" novalidate>
-		<?php if ( $ailo_show_tracking ) : ?>
+		<?php if ( $ailo_track_show_tracking ) : ?>
 			<div class="ailo-track__field">
-				<label class="ailo-track__label" for="<?php echo esc_attr( $ailo_uid ); ?>-number">
+				<label class="ailo-track__label" for="<?php echo esc_attr( $ailo_track_uid ); ?>-number">
 					<?php esc_html_e( 'Tracking number', 'ailo-order-tracking' ); ?>
 				</label>
 				<input class="ailo-track__input" type="text" inputmode="latin"
-					id="<?php echo esc_attr( $ailo_uid ); ?>-number"
+					id="<?php echo esc_attr( $ailo_track_uid ); ?>-number"
 					name="tracking" autocomplete="off"
-					placeholder="<?php echo esc_attr( $ailo_place ); ?>" />
+					placeholder="<?php echo esc_attr( $ailo_track_place ); ?>" />
 			</div>
 		<?php endif; ?>
 
-		<?php if ( $ailo_show_tracking && $ailo_show_order ) : ?>
+		<?php if ( $ailo_track_show_tracking && $ailo_track_show_order ) : ?>
 			<p class="ailo-track__or"><?php esc_html_e( 'or', 'ailo-order-tracking' ); ?></p>
 		<?php endif; ?>
 
-		<?php if ( $ailo_show_order ) : ?>
+		<?php if ( $ailo_track_show_order ) : ?>
 			<div class="ailo-track__field">
-				<label class="ailo-track__label" for="<?php echo esc_attr( $ailo_uid ); ?>-order">
+				<label class="ailo-track__label" for="<?php echo esc_attr( $ailo_track_uid ); ?>-order">
 					<?php esc_html_e( 'Order number', 'ailo-order-tracking' ); ?>
 				</label>
 				<input class="ailo-track__input" type="text" inputmode="numeric"
-					id="<?php echo esc_attr( $ailo_uid ); ?>-order"
+					id="<?php echo esc_attr( $ailo_track_uid ); ?>-order"
 					name="order_id" autocomplete="off" />
 			</div>
 			<div class="ailo-track__field">
-				<label class="ailo-track__label" for="<?php echo esc_attr( $ailo_uid ); ?>-contact">
+				<label class="ailo-track__label" for="<?php echo esc_attr( $ailo_track_uid ); ?>-contact">
 					<?php esc_html_e( 'Email or phone used on the order', 'ailo-order-tracking' ); ?>
 				</label>
 				<input class="ailo-track__input" type="text"
-					id="<?php echo esc_attr( $ailo_uid ); ?>-contact"
+					id="<?php echo esc_attr( $ailo_track_uid ); ?>-contact"
 					name="contact" autocomplete="off" />
 			</div>
 		<?php endif; ?>

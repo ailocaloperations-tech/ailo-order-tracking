@@ -3,7 +3,7 @@
  * Plugin Name:       Ailo Order Tracking
  * Plugin URI:        https://github.com/ailocaloperations-tech/ailo-order-tracking
  * Description:       Carrier-agnostic shipment tracking for WooCommerce. Add a tracking number to any order, show it in customer emails, and let customers look it up from a block. No external service, no API key, no account.
- * Version:           1.0.0
+ * Version:           1.1.0
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Requires Plugins:  woocommerce
@@ -19,7 +19,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'AILO_TRACK_VERSION', '1.0.0' );
+define( 'AILO_TRACK_VERSION', '1.1.0' );
 define( 'AILO_TRACK_FILE', __FILE__ );
 define( 'AILO_TRACK_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AILO_TRACK_URL', plugin_dir_url( __FILE__ ) );

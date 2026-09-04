@@ -44,7 +44,42 @@ function ailo_track_get_carriers() {
 			'url'   => isset( $carrier['url'] ) ? (string) $carrier['url'] : '',
 		);
 	}
-	return $out;
+
+	/**
+	 * Carriers this store can use.
+	 *
+	 * The stored option holds carriers the shop owner typed in by hand. An add-on
+	 * that talks to a courier API has no reason to make them type anything, so it
+	 * can register its carriers here instead.
+	 *
+	 * Whatever comes back is put through the SAME shape check as stored carriers
+	 * below. A filter is code from somewhere else, and the escaping guarantees the
+	 * rest of the plugin relies on cannot depend on that code being careful.
+	 *
+	 * @since 1.1.0
+	 * @param array<string,array{label:string,url:string}> $out Keyed by slug.
+	 */
+	$filtered = apply_filters( 'ailo_track_carriers', $out );
+	if ( ! is_array( $filtered ) ) {
+		return $out;
+	}
+
+	$safe = array();
+	foreach ( $filtered as $slug => $carrier ) {
+		if ( ! is_array( $carrier ) || empty( $carrier['label'] ) || ! is_scalar( $carrier['label'] ) ) {
+			continue;
+		}
+		$slug = sanitize_key( $slug );
+		if ( '' === $slug ) {
+			continue;
+		}
+		$url = isset( $carrier['url'] ) && is_scalar( $carrier['url'] ) ? (string) $carrier['url'] : '';
+		$safe[ $slug ] = array(
+			'label' => sanitize_text_field( (string) $carrier['label'] ),
+			'url'   => $url,
+		);
+	}
+	return $safe;
 }
 
 /**

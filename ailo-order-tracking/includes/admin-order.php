@@ -128,8 +128,11 @@ function ailo_track_save_metabox( $order_id ) {
 		$carrier = '';
 	}
 
-	ailo_track_update_meta( $order_id, AILO_TRACK_META_NUMBER, $number );
-	ailo_track_update_meta( $order_id, AILO_TRACK_META_CARRIER, $carrier );
+	// Through the shared writer, not two raw meta writes: it also raises
+	// ailo_track_shipment_saved, and only when something really changed. Both
+	// woocommerce_process_shop_order_meta and save_post_shop_order fire for one
+	// save, so the second pass finds no change and stays quiet.
+	ailo_track_set_shipment( $order_id, $number, $carrier );
 }
 add_action( 'woocommerce_process_shop_order_meta', 'ailo_track_save_metabox' );
 add_action( 'save_post_shop_order', 'ailo_track_save_metabox' );

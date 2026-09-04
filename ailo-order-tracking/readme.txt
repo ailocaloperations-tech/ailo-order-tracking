@@ -3,7 +3,7 @@ Tags: woocommerce, shipment tracking, order tracking, delivery
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,11 @@ Yes. The plugin declares compatibility with custom order tables and uses `WC_Ord
 https://github.com/ailocaloperations-tech/ailo-order-tracking — including the block source and the build setup.
 
 == Changelog ==
+
+= 1.1.0 =
+* Added the `ailo_track_carriers` filter so an add-on can register carriers instead of the shop owner typing them.
+* Added `ailo_track_set_shipment()` and the `ailo_track_shipment_saved` action, so writing a tracking number from code raises one signal, and only when something changed.
+* Added `languages/ailo-order-tracking.pot`.
 
 = 1.0.0 =
 * First release.

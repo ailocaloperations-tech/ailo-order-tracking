@@ -11,7 +11,7 @@ freight company that has never heard of WordPress.
 
 - **Requires:** WordPress 6.5+, WooCommerce, PHP 7.4+
 - **License:** GPL-2.0-or-later
-- **Status:** 1.0.0
+- **Status:** 1.1.0
 
 ---
 
@@ -79,6 +79,43 @@ validated by its own checker instead.
 `Order Tracking Lookup` renders on the server and inherits colour, spacing and typography
 from the theme rather than shipping its own design. It can go in a page or in a Full Site
 Editing template part.
+
+---
+
+## Extending
+
+Two hooks exist so an add-on can automate what the free plugin does by hand.
+
+**Register carriers from code.** The stored option holds carriers the shop owner typed in.
+An add-on that talks to a courier API has no reason to make them type anything:
+
+```php
+add_filter( 'ailo_track_carriers', function ( $carriers ) {
+    $carriers['my-courier'] = array(
+        'label' => 'My Courier',
+        'url'   => 'https://mycourier.example/track?code={tracking}',
+    );
+    return $carriers;
+} );
+```
+
+Whatever a filter returns is put through the same shape check as stored carriers, and the
+URL template is validated again before it reaches an `href`.
+
+**Write a tracking number, and hear about it.** `ailo_track_set_shipment()` is the one
+supported way to write shipment data, from the order screen or from code:
+
+```php
+ailo_track_set_shipment( $order, 'ABC123456', 'my-courier' );
+
+add_action( 'ailo_track_shipment_saved', function ( $order_id, $number, $carrier, $prev_number ) {
+    // fires only when something actually changed
+}, 10, 4 );
+```
+
+The action fires **only on change**. WooCommerce runs both
+`woocommerce_process_shop_order_meta` and `save_post_shop_order` for a single save of one
+order, so an unconditional action would report every shipment twice.
 
 ---
 

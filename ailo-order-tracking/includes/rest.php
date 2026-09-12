@@ -192,6 +192,22 @@ function ailo_track_contact_matches( WC_Order $order, $contact ) {
 }
 
 /**
+ * Calling code of the store's own country, digits only, or '' when unknown.
+ *
+ * WooCommerce returns it as "+389" (or as an array for the few countries that
+ * share a code); only the digits are useful for comparison.
+ *
+ * @return string
+ */
+function ailo_track_store_calling_code() {
+	if ( ! function_exists( 'WC' ) || ! isset( WC()->countries ) ) {
+		return '';
+	}
+	$code = WC()->countries->get_country_calling_code( WC()->countries->get_base_country() );
+	return preg_replace( '/D+/', '', (string) $code );
+}
+
+/**
  * Reduce a phone number to a comparable national form.
  *
  * Customers write the same number as 070123456, 70 123 456, +389 70 123 456 and
@@ -224,7 +240,7 @@ function ailo_track_national_number( $raw ) {
 	 *
 	 * @param string $code Digits only, without + or 00. Empty disables stripping.
 	 */
-	$cc = (string) apply_filters( 'ailo_track_country_calling_code', '' );
+	$cc = (string) apply_filters( 'ailo_track_country_calling_code', ailo_track_store_calling_code() );
 	if ( '' !== $cc && 0 === strpos( $digits, $cc ) && strlen( $digits ) > strlen( $cc ) ) {
 		$digits = substr( $digits, strlen( $cc ) );
 	}

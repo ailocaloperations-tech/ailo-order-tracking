@@ -349,5 +349,31 @@ class Test_Ailo_Track_Lookup extends WP_UnitTestCase {
 
 		$_SERVER = $saved;
 	}
+	/**
+	 * A customer who types the international form of the number on the order
+	 * is still the customer. The store's own calling code is stripped by
+	 * default (the docblock always promised that; the default used to be
+	 * empty), so on a store based in North Macedonia "+389 70 123 456" and
+	 * "00389 70 123 456" both match an order saved as "070 123 456".
+	 */
+	public function test_international_form_of_the_store_country_number_is_accepted() {
+		update_option( 'woocommerce_default_country', 'MK' );
+
+		foreach ( array( '+389 70 123 456', '00389 70 123 456', '38970123456' ) as $typed ) {
+			$this->assertTrue(
+				$this->found(
+					$this->lookup(
+						array(
+							'mode'     => 'order',
+							'order_id' => $this->order_a->get_id(),
+							'contact'  => $typed,
+						)
+					)
+				),
+				"{$typed} should match the national number on the order"
+			);
+		}
+	}
 }
+
 

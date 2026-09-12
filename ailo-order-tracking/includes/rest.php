@@ -204,7 +204,7 @@ function ailo_track_store_calling_code() {
 		return '';
 	}
 	$code = WC()->countries->get_country_calling_code( WC()->countries->get_base_country() );
-	return preg_replace( '/D+/', '', (string) $code );
+	return preg_replace( '/\D+/', '', (string) $code );
 }
 
 /**

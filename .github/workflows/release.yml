@@ -30,7 +30,10 @@ jobs:
           # rejection reason, and the few extra kilobytes are not worth arguing
           # about with a reviewer.
           zip -r dist/ailo-order-tracking.zip ailo-order-tracking \
-            -x 'ailo-order-tracking/node_modules/*'
+            -x 'ailo-order-tracking/node_modules/*' \
+               'ailo-order-tracking/tests/*' \
+               'ailo-order-tracking/phpunit.xml.dist' \
+               'ailo-order-tracking/package-lock.json'
       - uses: actions/upload-artifact@v4
         with:
           name: ailo-order-tracking

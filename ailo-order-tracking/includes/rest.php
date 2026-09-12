@@ -71,13 +71,23 @@ add_action(
  * @return string
  */
 function ailo_track_client_ip() {
-	// REMOTE_ADDR alone is wrong on any store behind a CDN or reverse proxy, and
-	// that is most of them: every visitor then arrives from the same edge address,
-	// so a single rate-limit bucket covers the whole shop and real customers
-	// collide with each other. WC_Geolocation::get_ip_address() is WooCommerce's
-	// own answer to this and already understands Cloudflare, X-Real-IP and
-	// X-Forwarded-For.
-	if ( class_exists( 'WC_Geolocation' ) ) {
+	/**
+	 * Filters whether proxy headers may identify the caller.
+	 *
+	 * Off by default. WC_Geolocation::get_ip_address() believes X-Real-IP and
+	 * X-Forwarded-For unconditionally, so on a store that is NOT behind a proxy
+	 * any caller can set the header and mint a fresh bucket per request, which
+	 * makes the limit decorative. A store that really sits behind a CDN or a
+	 * reverse proxy (where REMOTE_ADDR is always the edge address and every
+	 * visitor would share one bucket) opts in with
+	 * define( 'AILO_TRACK_TRUST_PROXY', true ) or with this filter. The
+	 * per-order bucket in ailo_track_rest_lookup() holds either way.
+	 *
+	 * @param bool $trust Whether to use WooCommerce's proxy-aware resolver.
+	 */
+	$trust_proxy = (bool) apply_filters( 'ailo_track_trust_proxy_headers', defined( 'AILO_TRACK_TRUST_PROXY' ) && AILO_TRACK_TRUST_PROXY );
+
+	if ( $trust_proxy && class_exists( 'WC_Geolocation' ) ) {
 		$ip = WC_Geolocation::get_ip_address();
 		if ( '' !== $ip && filter_var( $ip, FILTER_VALIDATE_IP ) ) {
 			return $ip;
@@ -95,18 +105,23 @@ function ailo_track_client_ip() {
  * number ten times is not doing anything wrong; someone trying ten different
  * contacts against one order number is.
  *
- * @param bool $register Whether to record a failure.
+ * @param bool   $register Whether to record a failure.
+ * @param string $bucket   Bucket key. Empty means the caller's address; the
+ *                         lookup also passes "order:<id>" so guesses at one
+ *                         order are capped no matter where they come from.
  * @return bool True when the caller should be blocked.
  */
-function ailo_track_rate_limited( $register = false ) {
-	$ip = ailo_track_client_ip();
-	if ( '' === $ip ) {
-		// No usable address means no bucket, and a limiter that gives up when it
-		// cannot identify the caller is a limiter an attacker turns off. Fall back
-		// to a single shared bucket rather than to no limit at all.
-		$ip = 'unknown';
+function ailo_track_rate_limited( $register = false, $bucket = '' ) {
+	if ( '' === $bucket ) {
+		$bucket = ailo_track_client_ip();
+		if ( '' === $bucket ) {
+			// No usable address means no bucket, and a limiter that gives up when it
+			// cannot identify the caller is a limiter an attacker turns off. Fall back
+			// to a single shared bucket rather than to no limit at all.
+			$bucket = 'unknown';
+		}
 	}
-	$key = 'ailo_track_rl_' . md5( $ip );
+	$key = 'ailo_track_rl_' . md5( $bucket );
 
 	// With a persistent object cache, increment atomically. A read-modify-write
 	// on a transient loses increments under concurrency, which means the real
@@ -251,9 +266,24 @@ function ailo_track_rest_lookup( WP_REST_Request $request ) {
 			return new WP_Error( 'ailo_track_missing', __( 'Please enter your order number and the email or phone used on the order.', 'ailo-order-tracking' ), array( 'status' => 400 ) );
 		}
 
+		// Second bucket, keyed on the order rather than the caller: guesses at the
+		// contact behind ONE order are capped no matter how many addresses they
+		// arrive from. The cost is that a flood of failures against an order also
+		// locks its real owner out for AILO_TRACK_RATE_WINDOW seconds; that is the
+		// lesser harm next to letting the contact be enumerated.
+		$order_bucket = 'order:' . $order_id;
+		if ( ailo_track_rate_limited( false, $order_bucket ) ) {
+			return new WP_Error(
+				'ailo_track_rate_limited',
+				__( 'Too many attempts. Please try again in a few minutes.', 'ailo-order-tracking' ),
+				array( 'status' => 429 )
+			);
+		}
+
 		$order = ailo_track_resolve_order( $order_id );
 		if ( ! $order instanceof WC_Order || ! ailo_track_contact_matches( $order, $contact ) ) {
 			ailo_track_rate_limited( true );
+			ailo_track_rate_limited( true, $order_bucket );
 			return new WP_Error( 'ailo_track_not_found', $generic, array( 'status' => 404 ) );
 		}
 

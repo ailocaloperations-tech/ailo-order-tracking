@@ -38,12 +38,14 @@ Failed attempts are rate limited, and two details matter:
 - **Only failures count.** A customer who checks the same valid tracking number ten times
   is not doing anything wrong. Someone trying ten different contacts against one order
   number is.
-- **The bucket key comes from `WC_Geolocation::get_ip_address()`**, not from
-  `REMOTE_ADDR`. Behind a CDN every visitor arrives from the same edge address, so
-  `REMOTE_ADDR` would put the whole shop in one bucket and real customers would collide
-  with each other. Trusting `X-Forwarded-For` directly is the opposite mistake — a caller
-  can forge it and get a fresh bucket per request, which makes the limit decorative.
-  WooCommerce's own resolver already knows when to believe a proxy header and when not to.
+- **Two buckets, and proxy headers are opt-in.** Failures are counted per caller address
+  and, separately, per order number, so guessing the contact behind one order is capped no
+  matter how many addresses the guesses come from. The caller address is `REMOTE_ADDR`
+  unless the site opts in with `define( 'AILO_TRACK_TRUST_PROXY', true )` or the
+  `ailo_track_trust_proxy_headers` filter, because `WC_Geolocation::get_ip_address()`
+  believes `X-Forwarded-For` unconditionally, and on a store that is not behind a proxy a
+  caller could forge it and mint a fresh bucket per request. Behind a real CDN or reverse
+  proxy, opt in: otherwise every visitor shares the edge address and one bucket.
 
 ### One codebase for both order storage backends
 

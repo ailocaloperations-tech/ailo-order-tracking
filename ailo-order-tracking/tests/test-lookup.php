@@ -278,4 +278,76 @@ class Test_Ailo_Track_Lookup extends WP_UnitTestCase {
 			$this->assertStringNotContainsString( $leak, $serialised );
 		}
 	}
+	/**
+	 * A forged X-Forwarded-For must not mint a fresh rate-limit bucket.
+	 *
+	 * By default the limiter keys on REMOTE_ADDR and ignores proxy headers, so
+	 * twenty failures from one address stay twenty failures no matter what the
+	 * caller writes in the header. Before this test existed the limiter used
+	 * WooCommerce's resolver unconditionally, and a new header per request
+	 * reset the count.
+	 */
+	public function test_forged_forwarded_for_does_not_reset_the_limit() {
+		$saved                  = $_SERVER;
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.7';
+
+		for ( $i = 0; $i < AILO_TRACK_RATE_LIMIT; $i++ ) {
+			$_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.' . ( $i + 1 );
+			$response                        = $this->lookup(
+				array(
+					'mode'     => 'tracking',
+					'tracking' => 'NOPE' . $i,
+				)
+			);
+			$this->assertSame( 404, $response->get_status(), "Attempt {$i} should simply fail" );
+		}
+
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.250';
+		$response                        = $this->lookup(
+			array(
+				'mode'     => 'tracking',
+				'tracking' => 'TRACKAAA',
+			)
+		);
+		$this->assertSame( 429, $response->get_status(), 'A new forwarded-for header must not open a new bucket' );
+
+		$_SERVER = $saved;
+	}
+
+	/**
+	 * Guesses at one order's contact are capped across caller addresses.
+	 *
+	 * The per-address bucket alone is defeated by a caller with many addresses.
+	 * The per-order bucket is what actually stops enumeration of the contact
+	 * behind a known order number.
+	 */
+	public function test_guessing_a_contact_for_one_order_is_limited_across_addresses() {
+		$saved = $_SERVER;
+		$id    = $this->order_a->get_id();
+
+		for ( $i = 0; $i < AILO_TRACK_RATE_LIMIT; $i++ ) {
+			$_SERVER['REMOTE_ADDR'] = '203.0.113.' . ( $i + 1 );
+			$response               = $this->lookup(
+				array(
+					'mode'     => 'order',
+					'order_id' => $id,
+					'contact'  => "guess{$i}@example.com",
+				)
+			);
+			$this->assertSame( 404, $response->get_status() );
+		}
+
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.200';
+		$response               = $this->lookup(
+			array(
+				'mode'     => 'order',
+				'order_id' => $id,
+				'contact'  => 'owner@example.com',
+			)
+		);
+		$this->assertSame( 429, $response->get_status(), 'Even the right contact is refused while the order bucket is hot' );
+
+		$_SERVER = $saved;
+	}
 }
+

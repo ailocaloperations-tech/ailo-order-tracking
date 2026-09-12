@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 772 250" width="772" height="250">
+  <rect width="772" height="250" fill="#1f2937"/>
+  <g transform="translate(60 65) scale(0.45)">
+    <path d="M128 52 L196 88 L196 168 L128 204 L60 168 L60 88 Z" fill="#f9fafb"/>
+    <path d="M128 52 L196 88 L128 124 L60 88 Z" fill="#d1d5db"/>
+    <path d="M128 124 L196 88 L196 168 L128 204 Z" fill="#9ca3af"/>
+    <path d="M94 70 L162 106 L162 142 L128 160 L128 124 L94 106 Z" fill="#f59e0b"/>
+    <circle cx="176" cy="60" r="26" fill="#10b981"/>
+    <path d="M176 92 L156 64 A24 24 0 1 1 196 64 Z" fill="#10b981"/>
+    <circle cx="176" cy="60" r="10" fill="#f9fafb"/>
+  </g>
+  <text x="200" y="112" font-family="Helvetica, Arial, sans-serif" font-size="44" font-weight="700" fill="#f9fafb">Ailo Order Tracking</text>
+  <text x="200" y="150" font-family="Helvetica, Arial, sans-serif" font-size="19" fill="#d1d5db">Carrier-agnostic shipment tracking for WooCommerce.</text>
+  <text x="200" y="176" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#9ca3af">No external service, no API key, no account.</text>
+</svg>
